@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
-from stopwatch import StopWatch, AggregateTimeLogger
+from stopwatch import StopWatch, AggregateTimeLogger, PrintTimeLogger
 
 class MockLogger(object):
     def __init__(self):
