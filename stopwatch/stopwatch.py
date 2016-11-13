@@ -3,16 +3,51 @@ import Queue
 import threading, logging
 
 """
-watch = StopWatch('basic_timer')
+watch = StopWatch() # creates new instance and starts watch timer
 watch.start()
-do_stuff()
-watch.stop() # records the execution time and prints a log message
+do_some_stuff()
 watch.stop('tag') # records the execution time and prints a log message
+
+---
+
+watch = StopWatch()
+...
+watch.lap('tag.section.1')
+...
+watch.lap('tag.section.2')
+...
+watch.lap('tag.section.3')
+...
+watch.stop('tag.section.4')
+...
+watch.start()
+..
+watch.stop('some other section')
+
+---
+
+watch = StopWatch()
+...
+watch.stop('tag', probability=0.5)
+
+---
+
+watch = StopWatch()
+...
+watch.stop('tag', probability=0.5) # Always stops, but logs with probability of 50%
+
+---
+
+watch = StopWatch()
+...
+watch.stop('tag', threshold=2.0) # Always stops, but logs if time >= 2.0
+
+---
+
 
 TODO:
 - Log with a probability of x
-- Only log if time > x
-- Only log if time < x
+- Only log if time >= x
 """
 
 LOG = logging.getLogger('stopwatch')
