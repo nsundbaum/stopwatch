@@ -1,4 +1,4 @@
-from stopwatch import StopWatch, TimeLogger, AggregateTimeLogger, PrintTimeLogger
+from stopwatch import StopWatch, Counter, MetricLogger, PrintMetricLogger
 
 # Set default logging handler to avoid "No handler found" warnings.
 import logging

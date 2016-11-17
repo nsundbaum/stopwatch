@@ -70,7 +70,8 @@ class StopWatch(object):
 
     def stop(self, tag):
         elapsed_time = self.clock() - self.start_time
-        self.logger.log(self.start_time, tag, elapsed_time, event_count=1)
+        self.logger.log(stopwatch_formatter, time_stamp=self.start_time, tag=tag,
+                        elapsed_time=elapsed_time, event_count=1)
         return elapsed_time
 
     def lap(self, tag):
@@ -79,32 +80,66 @@ class StopWatch(object):
         return elapsed_time
 
 
-class TimeLogger(object):
-    START_TOKEN = '<<<'
-    END_TOKEN = '>>>'
-    FORMAT = START_TOKEN + ' {time_stamp} {tag} {elapsed_time:f} {event_count} ' + END_TOKEN
+class Counter(object):
+    def __init__(self, logger=None, clock=None):
+        self.logger = logger
+        if not logger:
+            self.logger = PrintMetricLogger()
+        self.clock = clock
+        if not clock:
+            self.clock = time
 
-    def log(self, time_stamp, tag, elapsed_time, event_count=1):
+    def count(self, tag, event_count=1):
+        self.logger.log(counter_formatter, time_stamp=self.clock(), tag=tag, event_count=event_count)
+
+
+class LogFormatter(object):
+    TOKEN_SEPARATOR = '|'
+    START_TOKEN = '<' + TOKEN_SEPARATOR
+    END_TOKEN = TOKEN_SEPARATOR + '>'
+
+    def format(self, **kwargs):
+        return self.FORMAT.format(kwargs)
+
+
+class StopwatchFormatter(LogFormatter):
+    FORMAT = LogFormatter.TOKEN_SEPARATOR.join([LogFormatter.START_TOKEN + '{time_stamp}',
+                                                '{tag}',
+                                                '{elapsed_time:f}',
+                                                '{event_count}',
+                                                't' + LogFormatter.END_TOKEN])
+
+
+class CounterFormatter(LogFormatter):
+    FORMAT = LogFormatter.TOKEN_SEPARATOR.join([LogFormatter.START_TOKEN + '{time_stamp}',
+                                                '{tag}',
+                                                '{event_count}',
+                                                'c' + LogFormatter.END_TOKEN])
+
+stopwatch_formatter = StopwatchFormatter()
+counter_formatter = CounterFormatter()
+
+
+class MetricLogger(object):
+    def log(self, formatter, **kwargs):
         raise NotImplementedError()
 
 
-class PrintTimeLogger(TimeLogger):
+class PrintMetricLogger(MetricLogger):
 
     def __init__(self):
         pass
 
-    def log(self, time_stamp, tag, elapsed_time, event_count=1):
-        print TimeLogger.FORMAT.format(time_stamp=time_stamp, elapsed_time=elapsed_time, tag=tag, event_count=event_count)
+    def log(self, formatter, **kwargs):
+        print formatter.format(kwargs)
 
 
-class LoggingTimeLogger(TimeLogger):
+class LoggingMetricLogger(MetricLogger):
 
     def __init__(self, logger):
         self.logger = logger
 
-    def log(self, time_stamp, tag, elapsed_time, event_count=1):
+    def log(self, formatter, **kwargs):
         if self.logger.isEnabledFor(logging.INFO):
-            self.logger.info(TimeLogger.FORMAT.format(time_stamp=time_stamp,
-                                                      elapsed_time=elapsed_time,
-                                                      tag=tag,
-                                                      event_count=event_count))
+            self.logger.info(formatter.format(kwargs))
+

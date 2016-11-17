@@ -10,7 +10,7 @@
 """
 import sys, argparse
 from datetime import datetime
-from stopwatch import TimeLogger
+from stopwatch import LogFormatter
 
 
 class LogParser(object):
@@ -79,7 +79,7 @@ class LogParser(object):
 
     @staticmethod
     def is_stopwatch_line(line):
-        return line and line.startswith(TimeLogger.START_TOKEN) and line.endswith(TimeLogger.END_TOKEN)
+        return line and line.startswith(LogFormatter.START_TOKEN) and line.endswith(LogFormatter.END_TOKEN)
 
 
 class AggregateStats(object):
@@ -94,11 +94,12 @@ class AggregateStats(object):
         return max_tag_len
 
     def parse_line(self, line):
-        tokens = line.split()
+        tokens = line.split(LogFormatter.TOKEN_SEPARATOR)
+        type = tokens[-1]
         time_stamp = float(tokens[1])
-        event_count = int(tokens[-2])
-        elapsed_time = float(tokens[-3])
-        tag = ' '.join(tokens[2:-3])
+        tag = tokens[2]
+        elapsed_time = float(tokens[3])
+        event_count = int(tokens[4])
 
         if not self.buckets:
             self.new_bucket(time_stamp)
@@ -155,6 +156,7 @@ parser.add_argument('-a', '--aggregate', help='aggregate stats in specified inte
                                               '(seconds), \'m\' (minutes) or \'h\' (hours) ',
                     default=None)
 parser.add_argument('file', help='file to parse')
+
 
 def parse_interval(str_interval):
     if not str_interval:

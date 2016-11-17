@@ -2,14 +2,17 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
-from stopwatch import StopWatch, AggregateTimeLogger, PrintTimeLogger
+from stopwatch import MetricLogger
 
-class MockLogger(object):
+
+class MockMetricLogger(MetricLogger):
     def __init__(self):
         self.logged_events = []
+        self.formatter = None
 
-    def log(self, time_stamp, tag, elapsed_time, event_count=1):
-        self.logged_events.append({'time_stamp': time_stamp, 'tag': tag, 'elapsed_time': elapsed_time, 'event_count': event_count})
+    def log(self, formatter, **kwargs):
+        self.formatter = formatter
+        self.logged_events.append(kwargs)
 
     def log_count(self):
         return len(self.logged_events)
