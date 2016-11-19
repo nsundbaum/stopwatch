@@ -20,8 +20,8 @@ class LogParser(object):
     sort = {
         'tag': lambda stat: stat.tag,
         'count': lambda stat: stat.event_count,
-        'total': lambda stat: stat.total_time,
-        'avg': lambda stat: stat.average
+        'total': lambda stat: stat.total_time if hasattr(stat, 'total_time') else 0,
+        'avg': lambda stat: stat.average if hasattr(stat, 'average') else 0
     }
 
     def __init__(self, in_file, verbose=True, sort_by='tag', reverse=False, interval=TEN_YEARS_IN_SECONDS):
@@ -38,40 +38,31 @@ class LogParser(object):
             return self._parse_lines(file)
 
     def print_stats(self, aggregate_stats):
-        tag_col_width = aggregate_stats.max_tag_len() + 2
-
-        include_time = len(aggregate_stats.buckets) > 1
+        output = PrintOutput(aggregate_stats)
 
         for bucket in aggregate_stats.buckets:
-            print ''
-            if include_time:
-                start = datetime.fromtimestamp(bucket.start_time)
-                end = datetime.fromtimestamp(bucket.end_time)
-                time_format = '%H:%M:%S'
-                print start.strftime('%b-%m') + ': ' + start.strftime(time_format) + ' - ' + end.strftime(time_format)
-
-            print "{}{:>10}    {:>10}    {:>10}".format('Tag'.ljust(tag_col_width), 'Count', 'Total', 'Avg')
-            for tag_stats in sorted(bucket.aggregate_stats.values(), key=self.sort[self.sort_by], reverse=self.reverse):
-                tag_justified = tag_stats.tag.ljust(tag_col_width)
-                print "{}{:10d}    {:10.3f}    {:10.3f}".format(tag_justified, tag_stats.event_count, tag_stats.total_time,
-                                                                tag_stats.average)
-            print ''
+            output.bucket_header(bucket)
+            for stat in sorted(bucket.stats.values(), key=self.sort[self.sort_by], reverse=self.reverse):
+                stat.visit(output)
+            output.bucket_footer(bucket)
 
     def _parse_lines(self, log_file):
         aggregate_stats = AggregateStats(self.interval)
         line_count = 1
         for line in log_file:
             try:
-                line = line.strip()
                 self._parse_line(line, aggregate_stats)
-                line_count += 1
             except:
                 if self.verbose:
                     e = sys.exc_info()[0]
                     sys.stderr.write('Error reading line {} {}: {}'.format(line_count, line, e))
+            finally:
+                line_count += 1
+
         return aggregate_stats
 
     def _parse_line(self, line, aggregate_stats):
+        line = line.strip()
         if not self.is_stopwatch_line(line):
             return
 
@@ -82,6 +73,92 @@ class LogParser(object):
         return line and line.startswith(LogFormatter.START_TOKEN) and line.endswith(LogFormatter.END_TOKEN)
 
 
+class Output(object):
+    def bucket_header(self, bucket):
+        pass
+
+    def bucket_footer(self, bucket):
+        pass
+
+    def counter_stats(self, counter_stats):
+        pass
+
+    def timer_stats(self, timer_stats):
+        pass
+
+
+class PrintOutput(Output):
+    def __init__(self, aggregate_stats):
+        self.tag_col_width = aggregate_stats.max_tag_len() + 4
+        self.include_time = len(aggregate_stats.buckets) > 1
+
+    def bucket_header(self, bucket):
+        print ''
+        self._print_time(bucket)
+        tag_justified = 'Tag'.ljust(self.tag_col_width)
+        self._print_line(tag_justified, 'Type', 'Count', 'Total', 'Avg')
+
+    def _print_time(self, bucket):
+        if not self.include_time:
+            return
+
+        start = datetime.fromtimestamp(bucket.start_time)
+        end = datetime.fromtimestamp(bucket.end_time)
+        time_format = '%H:%M:%S'
+        print start.strftime('%b-%m') + ': ' + start.strftime(time_format) + ' - ' + end.strftime(time_format)
+
+    def counter_stats(self, counter_stats):
+        self._print_line(counter_stats.tag, 'count', str(counter_stats.event_count), '-', '-')
+
+    def timer_stats(self, timer_stats):
+        self._print_line(timer_stats.tag, 'time', str(timer_stats.event_count),
+                         '{:.3f}'.format(timer_stats.total_time),
+                         '{:.3f}'.format(timer_stats.average))
+
+    def _print_line(self, tag, type, event_count, total_time, average):
+        tag_justified = tag.ljust(self.tag_col_width)
+        print "{}{:<10}    {:<10}    {:<10}    {:<10}".format(tag_justified, type, event_count, total_time, average)
+
+    def bucket_footer(self, bucket):
+        print ''
+
+
+class TimerStats(object):
+    def __init__(self, type, tag):
+        self.type = type
+        self.tag = tag
+        self.event_count = 0
+        self.total_time = 0.0
+        self.average = 0.0
+        # Add rate, e.g. event_count per second
+
+    def add(self, tokens):
+        elapsed_time = float(tokens[0])
+        event_count = int(tokens[1])
+
+        self.event_count += event_count
+        self.total_time += elapsed_time
+        self.average = self.total_time / self.event_count
+
+    def visit(self, visitor):
+        visitor.timer_stats(self)
+
+
+class CounterStats(object):
+    def __init__(self, type, tag):
+        self.type = type
+        self.tag = tag
+        self.event_count = 0
+        # Add rate, e.g. event_count per second
+
+    def add(self, tokens):
+        event_count = int(tokens[0])
+        self.event_count += event_count
+
+    def visit(self, visitor):
+        visitor.counter_stats(self)
+
+
 class AggregateStats(object):
     def __init__(self, interval):
         self.interval = interval
@@ -90,61 +167,52 @@ class AggregateStats(object):
     def max_tag_len(self):
         max_tag_len = 0
         for bucket in self.buckets:
-            max_tag_len = max(max_tag_len, *(len(tag) for tag in bucket.aggregate_stats.keys()))
+            max_tag_len = max(max_tag_len, *(len(tag) for tag in bucket.stats.keys()))
         return max_tag_len
 
     def parse_line(self, line):
         tokens = line.split(LogFormatter.TOKEN_SEPARATOR)
-        type = tokens[-1]
+        type = tokens[-2]
         time_stamp = float(tokens[1])
         tag = tokens[2]
-        elapsed_time = float(tokens[3])
-        event_count = int(tokens[4])
 
         if not self.buckets:
-            self.new_bucket(time_stamp)
+            self._new_bucket(time_stamp)
 
         current_bucket = self.buckets[-1]
         if not current_bucket.in_bucket(time_stamp):
-            current_bucket = self.new_bucket(time_stamp)
+            current_bucket = self._new_bucket(time_stamp)
 
-        current_bucket.add(tag=tag, event_count=event_count, elapsed_time=elapsed_time)
+        remaining_tokens = tokens[3:-2]
+        current_bucket.add(type, tag, remaining_tokens)
 
-    def new_bucket(self, start_time):
+    def _new_bucket(self, start_time):
         end_time = start_time + self.interval
-        bucket = TimeBucket(start_time, end_time)
+        bucket = Bucket(start_time, end_time)
         self.buckets.append(bucket)
         return bucket
 
 
-class TimeBucket(object):
+class Bucket(object):
+    aggregate_stats_classes = {
+        't': TimerStats,
+        'c': CounterStats
+    }
+
     def __init__(self, start_time, end_time):
         self.start_time = start_time
         self.end_time = end_time
-        self.aggregate_stats = {}
+        self.stats = {}
 
     def in_bucket(self, time_stamp):
         return time_stamp >= self.start_time and time_stamp <= self.end_time
 
-    def add(self, tag, event_count, elapsed_time):
-        if tag not in self.aggregate_stats:
-            self.aggregate_stats[tag] = AggregateTagStats(tag)
+    def add(self, type, tag, tokens):
+        if tag not in self.stats:
+            self.stats[tag] = self.aggregate_stats_classes[type](type, tag)
 
-        tag_stats = self.aggregate_stats[tag]
-        tag_stats.add(event_count=event_count, elapsed_time=elapsed_time)
-
-
-class AggregateTagStats(object):
-    def __init__(self, tag):
-        self.tag = tag
-        self.event_count = 0
-        self.total_time = 0.0
-        self.average = 0.0
-
-    def add(self, event_count, elapsed_time):
-        self.event_count += event_count
-        self.total_time += elapsed_time
-        self.average = self.total_time / self.event_count
+        tag_stats = self.stats[tag]
+        tag_stats.add(tokens)
 
 
 parser = argparse.ArgumentParser(description='Aggregates metrics from Stopwatch formatted file')

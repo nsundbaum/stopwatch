@@ -1,20 +1,27 @@
 <|1473448832.64|test.tag1|1.725|1|t|>
-<|1473448833.64 test.tag2 0.943 2|t|>
+<|1473448832.64|test.count1|1|c|>
+<|1473448833.64|test.tag2|0.943|2|t|>
 <|1473448833.67|test tag 3|19.881|1|t|>
 <|1473448833.79|test.long.long.tag|0.9|1|t|>
 
 <|1473448833.79|test.time|123456.987|1|t|>
 
-<|1473448834.10|test.tag1|1.021 1|t|>
-<|1473448834.20|test.tag2|0.910 1|t|>
+<|1473448834.10|test.tag1|1.021|1|t|>
+<|1473448834.20|test.tag2|0.910|1|t|>
 
 This should be ignored
 This should be ignored |t|>
 <| This should be ignored
 
 The below line should be ignored since it is not a complete stopwatch line
-<|1473448835.10|test.tag1|t|>
+<|1473448835.10|test.tag1|t|
 
 <|1473448835.10|test.tag1|1.021|1|t|>
 
-<|1473448835.10|test tag 3|1.021|1|t|>
+<|1473448835.15|test.count1|5|c|>
+
+<|1473448835.20|test tag 3|1.021|1|t|>
+
+<|1473448835.20|test.count1|2|c|>
+
+<|1473448835.25|test.count2|2|c|>

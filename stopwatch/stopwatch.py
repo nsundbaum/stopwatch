@@ -59,7 +59,7 @@ class StopWatch(object):
         self.start_time = None
         self.logger = logger
         if not logger:
-            self.logger = PrintTimeLogger()
+            self.logger = PrintMetricLogger()
         self.clock = clock
         if not clock:
             self.clock = time
@@ -89,8 +89,8 @@ class Counter(object):
         if not clock:
             self.clock = time
 
-    def count(self, tag, event_count=1):
-        self.logger.log(counter_formatter, time_stamp=self.clock(), tag=tag, event_count=event_count)
+    def incr(self, tag, count=1):
+        self.logger.log(counter_formatter, time_stamp=self.clock(), tag=tag, event_count=count)
 
 
 class LogFormatter(object):
