@@ -1,9 +1,9 @@
 # Stopwatch
 Stopwatch is a StatsD-like library for logging and aggregating metrics implemented in Python. However, instead of sending metrics across the network to a
 central server, it simply logs each metric locally to file, one line per logged metric event. This file can then be
-parsed to get an aggregated view of logged metrics.
+parsed to get an aggregated report of logged metrics.
 
-It is intended to be used in scenarios where a full-blown StatsD (or similar) stack
+Stopwatch is intended to be used in scenarios where a full-blown StatsD (or similar) stack
 would be overkill, for example when the amount of web servers is small.
 
 Stopwatch comes with two parts. One API for logging metrics to file and one parser to parse such files in
@@ -35,9 +35,9 @@ bar        count         34            -                -
 
 ## Advanced usage
 ### Configure a logger
-By default, Stopwatch logs to standard out but standard Python loggers are also supported.
+By default, Stopwatch logs to standard out but regular Python loggers are also supported.
 
-To configure logging using a Python logger:
+To configure file-based logging using a Python logger:
 ```python
 import logging
 
@@ -66,7 +66,7 @@ counter.incr('bar')
 ### Using sample rates
 To limit logging in high throughput scenarios, sample rates can be specified for timers and counters. A sample rate of
 for example 0.1 means that events will be logged with a probability of 0.1. In the aggregated metrics,
-sample rates will used to project the actual metrics as if all events were logged.
+sample rates will be used to project the actual metrics as if all events were logged.
 
 ```python
 timer = Timer()
@@ -85,7 +85,7 @@ Use the optional threshold parameter to limit timer logging to events with an el
 ```python
 timer = Timer()
 ...
-timer.stop('foo', threshold=0.5) # Only logs events with a duration of >= 0.5 seconds
+timer.stop('foo', threshold=2.0) # Only logs events with a duration of >= 2.0 seconds
 ```
 
 ### Reset the timer
@@ -98,7 +98,7 @@ for foo in foos:
 ```
 
 ### Group report in time intervals
-To get a more fine-grained aggregate report, the `logparser` can be invoked with an `--aggregate`parameter
+To get a more fine-grained aggregate report, the `logparser` can be invoked with an `--aggregate` parameter
 to specify the time interval (in seconds, minutes or hours) for the report.
 
 For example, to break down the report into 10 minute intervals:
@@ -153,4 +153,6 @@ Features on the near-term roadmap include:
 - Provide a context manager for timers.
 - Provide decorators for timers and counters.
 - Add option to generate report on csv and json format.
+- Add more calculated metrics to report, e.g. percentiles and throughput.
+- Flask/Django extensions to log response times.
 - Add 'gauge' metric type.
