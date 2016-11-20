@@ -172,19 +172,17 @@ class AggregateStats(object):
 
     def parse_line(self, line):
         tokens = line.split(LogFormatter.TOKEN_SEPARATOR)
-        type = tokens[-2]
-        time_stamp = float(tokens[1])
-        tag = tokens[2]
+        time_stamp, tag, metric_type = float(tokens[1]), tokens[2], tokens[-2]
 
         if not self.buckets:
             self._new_bucket(time_stamp)
 
         current_bucket = self.buckets[-1]
-        if not current_bucket.in_bucket(time_stamp):
+        if not current_bucket.fits(time_stamp):
             current_bucket = self._new_bucket(time_stamp)
 
         remaining_tokens = tokens[3:-2]
-        current_bucket.add(type, tag, remaining_tokens)
+        current_bucket.add(metric_type, tag, remaining_tokens)
 
     def _new_bucket(self, start_time):
         end_time = start_time + self.interval
@@ -204,7 +202,7 @@ class Bucket(object):
         self.end_time = end_time
         self.stats = {}
 
-    def in_bucket(self, time_stamp):
+    def fits(self, time_stamp):
         return time_stamp >= self.start_time and time_stamp <= self.end_time
 
     def add(self, type, tag, tokens):
