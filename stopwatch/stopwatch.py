@@ -93,9 +93,12 @@ class Counter(object):
         self.clock = clock
         if not clock:
             self.clock = time
+        self.rand = random.random
 
-    def incr(self, tag, count=1):
-        self.logger.log(counter_formatter, time_stamp=self.clock(), tag=tag, event_count=count)
+    def incr(self, tag, count=1, sample_rate=1):
+        if sample_rate > 0 and sample_rate >= self.rand():
+            event_count = int(round(count / sample_rate))
+            self.logger.log(counter_formatter, time_stamp=self.clock(), tag=tag, event_count=event_count)
 
 
 class LogFormatter(object):

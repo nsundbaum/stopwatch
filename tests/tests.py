@@ -1,9 +1,9 @@
 import unittest
 
-from context import Timer, MockClock, MockMetricLogger, MockRand, InMemoryLogger
+from context import Timer, Counter, MockClock, MockMetricLogger, MockRand, InMemoryLogger
 
 
-class StopWatchTest(unittest.TestCase):
+class TimerTest(unittest.TestCase):
     def setUp(self):
         self.clock = MockClock(0)
         self.logger = MockMetricLogger()
@@ -76,13 +76,13 @@ class StopWatchTest(unittest.TestCase):
 
         self.assertEqual(self.timer.stop('test'), 2)
 
-    def test_negative_sample_rate_should_never_log(self):
+    def test_negative_sample_rate_should_not_log(self):
         self.timer.rand = MockRand(0.5)
         self.timer.stop('test', sample_rate=-1)
 
         self.assertEqual(self.logger.log_count(), 0)
 
-    def test_zero_sample_rate_should_never_log(self):
+    def test_zero_sample_rate_should_not_log(self):
         self.timer.rand = MockRand(0.5)
         self.timer.stop('test', sample_rate=0)
 
@@ -194,6 +194,109 @@ class StopWatchTest(unittest.TestCase):
         self.assertEqual(log_line, '<|0|test.tag|1.000000|1|t|>')
 
 
+class CounterTest(unittest.TestCase):
+    def setUp(self):
+        self.logger = MockMetricLogger()
+        self.clock = MockClock(0)
+        self.counter = Counter(self.logger, self.clock)
+
+    def test_incr_should_log(self):
+        self.counter.incr('test')
+
+        self.assertEqual(self.logger.log_count(), 1)
+
+        self.counter.incr('test')
+
+        self.assertEqual(self.logger.log_count(), 2)
+
+    def test_incr_should_log_one_by_default(self):
+        self.counter.incr('test')
+
+        self.assertEqual(self.logger.logged_events[0]['event_count'], 1)
+
+    def test_incr_should_log_tag(self):
+        self.counter.incr('test.tag')
+
+        self.assertEqual(self.logger.logged_events[0]['tag'], 'test.tag')
+
+    def test_event_count_should_have_specified_value(self):
+        self.counter.incr('test', 7)
+
+        self.assertEqual(self.logger.logged_events[0]['event_count'], 7)
+
+    def test_counter_format(self):
+        logger = InMemoryLogger()
+        self.counter.logger = logger
+        self.clock.set(15)
+
+        self.counter.incr('test', 7)
+
+        log_line = logger.logged_events[0]
+        self.assertEqual(log_line, '<|15|test|7|c|>')
+
+    def test_negative_sample_rate_should_not_log(self):
+        self.counter.rand = MockRand(0.5)
+        self.counter.incr('test', sample_rate=-1)
+
+        self.assertEqual(self.logger.log_count(), 0)
+
+    def test_zero_sample_rate_should_not_log(self):
+        self.counter.rand = MockRand(0.5)
+        self.counter.incr('test', sample_rate=0)
+
+        self.assertEqual(self.logger.log_count(), 0)
+
+    def test_should_log_if_rand_less_than_sample_rate(self):
+        self.counter.rand = MockRand(0.5)
+        self.counter.incr('test', sample_rate=0.6)
+
+        self.assertEqual(self.logger.log_count(), 1)
+
+    def test_should_log_if_rand_equal_to_sample_rate(self):
+        self.counter.rand = MockRand(0.5)
+        self.counter.incr('test', sample_rate=0.5)
+
+        self.assertEqual(self.logger.log_count(), 1)
+
+    def test_should_not_log_if_rand_greater_than_sample_rate(self):
+        self.counter.rand = MockRand(0.5)
+        self.counter.incr('test', sample_rate=0.4)
+
+        self.assertEqual(self.logger.log_count(), 0)
+
+    def test_logged_events_should_divide_by_sample_rate_1(self):
+        self.counter.rand = MockRand(0.4)
+        self.counter.incr('test', sample_rate=0.5)
+
+        self.assertEqual(self.logger.logged_events[0]['event_count'], 2)
+
+    def test_logged_events_should_divide_by_sample_rate_2(self):
+        self.counter.rand = MockRand(0.05)
+        self.counter.incr('test', sample_rate=0.1)
+
+        self.assertEqual(self.logger.logged_events[0]['event_count'], 10)
+
+    def test_logged_events_should_divide_by_sample_rate_3(self):
+        self.counter.rand = MockRand(0.05)
+        self.counter.incr('test', count=2, sample_rate=0.1)
+
+        self.assertEqual(self.logger.logged_events[0]['event_count'], 20)
+
+    def test_logged_events_should_round_to_nearest_integer_1(self):
+        self.counter.rand = MockRand(0.1)
+        self.counter.incr('test', sample_rate=0.3)
+
+        self.assertEqual(self.logger.logged_events[0]['event_count'], 3)
+
+    def test_logged_events_should_round_to_nearest_integer_2(self):
+        self.counter.rand = MockRand(0.1)
+        self.counter.incr('test', sample_rate=0.66)
+
+        self.assertEqual(self.logger.logged_events[0]['event_count'], 2)
+
 if __name__ == '__main__':
-    suite = unittest.TestLoader().loadTestsFromTestCase(StopWatchTest)
+    suite = unittest.TestSuite()
+    for test_class in [TimerTest, CounterTest]:
+        tests = unittest.TestLoader().loadTestsFromTestCase(test_class)
+        suite.addTests(tests)
     unittest.TextTestRunner(verbosity=2).run(suite)

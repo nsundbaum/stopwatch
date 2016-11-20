@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 
-from stopwatch import MetricLogger, Timer
+from stopwatch import MetricLogger, Timer, Counter
 
 
 class MockMetricLogger(MetricLogger):
