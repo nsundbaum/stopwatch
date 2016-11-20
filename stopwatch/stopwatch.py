@@ -52,7 +52,7 @@ TODO:
 LOG = logging.getLogger('stopwatch')
 
 
-class StopWatch(object):
+class Timer(object):
 
     def __init__(self, logger=None, clock=None):
         self.start_time = None
@@ -69,15 +69,13 @@ class StopWatch(object):
         self.start_time = self.clock()
 
     def stop(self, tag, sample_rate=1, threshold=0):
-        if sample_rate <= 0 or sample_rate < self.rand():
-            return
-
         elapsed_time = self.clock() - self.start_time
-        if elapsed_time < threshold:
-            return
+
+        if sample_rate <= 0 or sample_rate < self.rand() or elapsed_time < threshold:
+            return elapsed_time
 
         event_count = int(round(1 / sample_rate))
-        self.logger.log(stop_watch_formatter, time_stamp=self.start_time, tag=tag,
+        self.logger.log(timer_formatter, time_stamp=self.start_time, tag=tag,
                         elapsed_time=elapsed_time, event_count=event_count)
         return elapsed_time
 
@@ -109,7 +107,7 @@ class LogFormatter(object):
         return self.FORMAT.format(**kwargs)
 
 
-class StopWatchFormatter(LogFormatter):
+class TimerFormatter(LogFormatter):
     FORMAT = LogFormatter.TOKEN_SEPARATOR.join([LogFormatter.START_TOKEN + '{time_stamp}',
                                                 '{tag}',
                                                 '{elapsed_time:f}',
@@ -123,7 +121,7 @@ class CounterFormatter(LogFormatter):
                                                 '{event_count}',
                                                 'c' + LogFormatter.END_TOKEN])
 
-stop_watch_formatter = StopWatchFormatter()
+timer_formatter = TimerFormatter()
 counter_formatter = CounterFormatter()
 
 
