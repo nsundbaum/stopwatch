@@ -1,6 +1,5 @@
 from time import time
-import Queue
-import threading, logging
+import random, logging
 
 """
 watch = StopWatch() # creates new instance and starts watch timer
@@ -46,8 +45,8 @@ watch.stop('tag', threshold=2.0) # Always stops, but logs if time >= 2.0
 
 
 TODO:
-- Log with a probability of x
-- Only log if time >= x
+- Use with context manager
+- Decorator
 """
 
 LOG = logging.getLogger('stopwatch')
@@ -63,19 +62,27 @@ class StopWatch(object):
         self.clock = clock
         if not clock:
             self.clock = time
+        self.rand = random.random
         self.start()
 
     def start(self):
         self.start_time = self.clock()
 
-    def stop(self, tag):
+    def stop(self, tag, sample_rate=1, threshold=0):
+        if sample_rate <= 0 or sample_rate < self.rand():
+            return
+
         elapsed_time = self.clock() - self.start_time
-        self.logger.log(stopwatch_formatter, time_stamp=self.start_time, tag=tag,
-                        elapsed_time=elapsed_time, event_count=1)
+        if elapsed_time < threshold:
+            return
+
+        event_count = int(round(1 / sample_rate))
+        self.logger.log(stop_watch_formatter, time_stamp=self.start_time, tag=tag,
+                        elapsed_time=elapsed_time, event_count=event_count)
         return elapsed_time
 
-    def lap(self, tag):
-        elapsed_time = self.stop(tag)
+    def lap(self, tag, sample_rate=1, threshold=0):
+        elapsed_time = self.stop(tag, sample_rate, threshold)
         self.start()
         return elapsed_time
 
@@ -99,10 +106,10 @@ class LogFormatter(object):
     END_TOKEN = TOKEN_SEPARATOR + '>'
 
     def format(self, **kwargs):
-        return self.FORMAT.format(kwargs)
+        return self.FORMAT.format(**kwargs)
 
 
-class StopwatchFormatter(LogFormatter):
+class StopWatchFormatter(LogFormatter):
     FORMAT = LogFormatter.TOKEN_SEPARATOR.join([LogFormatter.START_TOKEN + '{time_stamp}',
                                                 '{tag}',
                                                 '{elapsed_time:f}',
@@ -116,7 +123,7 @@ class CounterFormatter(LogFormatter):
                                                 '{event_count}',
                                                 'c' + LogFormatter.END_TOKEN])
 
-stopwatch_formatter = StopwatchFormatter()
+stop_watch_formatter = StopWatchFormatter()
 counter_formatter = CounterFormatter()
 
 
